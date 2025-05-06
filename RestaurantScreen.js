@@ -17,6 +17,7 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import { supabase } from './supabase';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -37,15 +38,39 @@ export default function RestaurantScreen() {
     }, [])
   );
 
-  const handleSubmit = () => {
-    console.log('Submitted wait time:', waitTime, 'Visit Type:', visitType);
-    Alert.alert('Thanks!', 'Your wait time was submitted. 🎉');
-    setWaitTime('');
-    setVisitType(null);
-    setShowConfetti(true);
+const handleSubmit = async () => {
+  const parsedWaitTime = parseInt(waitTime);
 
-    setTimeout(() => setShowConfetti(false), 3000);
-  };
+  if (!visitType || isNaN(parsedWaitTime)) {
+    Alert.alert('Missing Info', 'Please enter a valid wait time and select a visit type.');
+    return;
+  }
+
+  const { error, data } = await supabase.from('wait_times').insert([
+  {
+    restaurant_id: restaurant.id,
+    wait_time: parsedWaitTime,
+    visit_type: visitType,
+    submitted_at: new Date().toISOString(),
+  },
+]);
+
+console.log('✅ Submitted to Supabase:', data);
+
+
+  if (error) {
+    console.error('❌ Supabase insert error:', error.message);
+    Alert.alert('Error', 'Something went wrong. Please try again.');
+    return;
+  }
+
+  Alert.alert('🎉 Thanks!', 'Your wait time was submitted.');
+  setWaitTime('');
+  setVisitType(null);
+  setShowConfetti(true);
+  setTimeout(() => setShowConfetti(false), 3000);
+};
+
 
   return (
 <KeyboardAvoidingView
@@ -111,9 +136,9 @@ export default function RestaurantScreen() {
     </View>
   </ScrollView>
 
-  {/* 🎉 Confetti cannon below all content */}
-  {showConfetti && (
-    <ConfettiCannon count={80} origin={{ x: screenWidth / 2, y: 0 }} fadeOut />
+    {/* 🎉 Confetti goes OUTSIDE the ScrollView, still inside KeyboardAvoidingView */}
+    {showConfetti && (
+      <ConfettiCannon count={80} origin={{ x: screenWidth / 2, y: 0 }} fadeOut />
   )}
 </KeyboardAvoidingView>
 
